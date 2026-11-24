@@ -1,0 +1,22 @@
+# Python & Django müvəqqəti faylları
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3-journal
+*.log
+
+# Virtual mühitlər və lokal sazlamalar
+venv/
+.venv/
+env/
+.env
+.env.*
+
+# IDE və əməliyyat sistemi faylları
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# Lazım olsa, lokal bazanı ayrıca idarə etmək istəsəniz açın:
+# db.sqlite3
