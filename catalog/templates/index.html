@@ -6,10 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
     <title>{% if lang == 'az' %}Rəqəmsal Məhsullar Vitrini | Mağaza{% else %}Digital Products Storefront | Store{% endif %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=20261123">
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=20261123">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=20261126">
 </head>
-<body class="notranslate" data-lang="{{ lang }}">
+<body class="notranslate"
+      data-lang="{{ lang }}"
+      data-authenticated="{% if user.is_authenticated %}1{% else %}0{% endif %}"
+      data-staff="{% if user.is_authenticated and user.is_staff %}1{% else %}0{% endif %}">
 
     <header class="site-header">
         <div class="header-inner">
@@ -17,13 +19,36 @@
                 <div class="brand-block">
                     <span class="badge-pill">{% if lang == 'az' %}RƏQƏMSAL MARKET{% else %}DIGITAL MARKETPLACE{% endif %}</span>
                     <h1>{% if lang == 'az' %}Rəqəmsal Məhsullar Vitrini{% else %}Digital Products Storefront{% endif %}</h1>
-                    <p>{% if lang == 'az' %}Elektron kitablar, hazır kod şablonları və rəqəmsal resurslar — sürətli seçim və ani sifariş{% else %}E-books, production-ready code templates, and digital assets with instant checkout{% endif %}</p>
+                    <p>{% if lang == 'az' %}Elektron kitablar, hazır kod şablonları və rəqəmsal resurslar — təhlükəsiz seçim və rəqəmsal çatdırılma{% else %}E-books, production-ready code templates, and digital assets with secure delivery{% endif %}</p>
                 </div>
 
-                <div class="header-actions">
-                    <a href="/admin/catalog/product/add/" class="add-listing-btn">
-                        + {% if lang == 'az' %}Yeni məhsul{% else %}Add product{% endif %}
-                    </a>
+                <div class="header-actions" aria-label="User and store actions">
+                    {% if user.is_authenticated and user.is_staff %}
+                        <a href="/admin/catalog/product/add/" class="add-listing-btn">
+                            + {% if lang == 'az' %}Yeni məhsul{% else %}Add product{% endif %}
+                        </a>
+                    {% endif %}
+
+                    <div class="auth-actions" id="authActions">
+                        {% if user.is_authenticated %}
+                            <span class="user-badge" id="currentUserBadge">{{ user.username }}</span>
+                            <a href="/accounts/logout/?next={% url 'index' %}?lang={{ lang }}" class="auth-link" id="logoutLink">
+                                {% if lang == 'az' %}Çıxış{% else %}Logout{% endif %}
+                            </a>
+                        {% else %}
+                            <button type="button" class="auth-btn" id="openLoginBtn" data-auth-mode="login">
+                                {% if lang == 'az' %}Daxil ol{% else %}Login{% endif %}
+                            </button>
+                            <button type="button" class="auth-btn auth-btn-outline" id="openRegisterBtn" data-auth-mode="register">
+                                {% if lang == 'az' %}Qeydiyyat{% else %}Register{% endif %}
+                            </button>
+                        {% endif %}
+                    </div>
+
+                    <button type="button" class="cart-trigger-btn" id="openCartBtn" aria-label="Open shopping cart">
+                        <span>🛒 {% if lang == 'az' %}Səbət{% else %}Cart{% endif %}</span>
+                        <span class="cart-count-badge" id="cartCountBadge">0</span>
+                    </button>
 
                     <div class="lang-switcher">
                         <a href="?lang=en" class="lang-btn {% if lang == 'en' %}active{% endif %}">EN</a>
@@ -52,7 +77,7 @@
     </header>
 
     <main class="container">
-        <!-- Tap.az üslubunda İkonlu Kateqoriya Vitrini -->
+        <!-- Kateqoriya Vitrini -->
         <section class="category-showcase" aria-label="Categories">
             <div class="section-head">
                 <h2>{% if lang == 'az' %}Kateqoriyalar{% else %}Categories{% endif %}</h2>
@@ -90,116 +115,59 @@
         </div>
 
         <div class="grid" id="productsGrid">
-            {% if products %}
-                {% for product in products %}
-                <article class="card"
-                         data-price="{{ product.price }}"
-                         data-title="{{ product.title|lower }}"
-                         data-desc="{{ product.description|lower }}">
-                    <div class="card-banner banner-template">
-                        <span class="banner-badge">{% if lang == 'az' %}RƏQƏMSAL RESURS{% else %}DIGITAL ASSET{% endif %}</span>
-                        <span class="banner-icon">⚡</span>
-                    </div>
-                    <div class="card-top-meta">
-                        <span class="tag product-category-tag">{% if lang == 'az' %}Rəqəmsal Məhsul{% else %}Digital Asset{% endif %}</span>
-                        <span class="delivery-tag">{% if lang == 'az' %}Ani çatdırılma{% else %}Instant delivery{% endif %}</span>
-                    </div>
-                    <div class="card-body">
-                        <h3 class="card-title">{{ product.title }}</h3>
-                        <p class="card-text">{{ product.description }}</p>
-                        <div class="card-footer">
-                            <div>
-                                <span class="price-label">{% if lang == 'az' %}Qiymət{% else %}Price{% endif %}</span>
-                                <span class="price">${{ product.price }}</span>
-                            </div>
+            {% for product in products %}
+            <article class="card"
+                     data-product-id="{{ product.id }}"
+                     data-category="{{ product.category|default:'' }}"
+                     data-price="{{ product.price }}"
+                     data-title="{{ product.title|lower }}"
+                     data-desc="{{ product.description|lower }}">
+                <div class="card-banner banner-template">
+                    <span class="banner-badge">{% if lang == 'az' %}RƏQƏMSAL RESURS{% else %}DIGITAL ASSET{% endif %}</span>
+                    <span class="banner-icon">⚡</span>
+                </div>
+                <div class="card-top-meta">
+                    <span class="tag product-category-tag">{% if lang == 'az' %}Rəqəmsal Məhsul{% else %}Digital Asset{% endif %}</span>
+                    <span class="delivery-tag">{% if lang == 'az' %}Təsdiqdən sonra çatdırılma{% else %}Delivery after confirmation{% endif %}</span>
+                </div>
+                <div class="card-body">
+                    <h3 class="card-title">{{ product.title }}</h3>
+                    <p class="card-text">{{ product.description }}</p>
+                    <div class="card-footer">
+                        <div>
+                            <span class="price-label">{% if lang == 'az' %}Qiymət{% else %}Price{% endif %}</span>
+                            <span class="price">${{ product.price }}</span>
+                        </div>
+                        <div class="card-cta-group">
+                            <button
+                                type="button"
+                                class="btn btn-secondary add-to-cart-btn"
+                                data-product-id="{{ product.id }}"
+                                data-title="{{ product.title|escapejs }}"
+                                data-price="{{ product.price }}">
+                                {% if lang == 'az' %}Səbətə at{% else %}Add to Cart{% endif %}
+                            </button>
                             <button
                                 type="button"
                                 class="btn buy-now-btn"
+                                data-product-id="{{ product.id }}"
                                 data-title="{{ product.title|escapejs }}"
                                 data-price="{{ product.price }}">
                                 {% if lang == 'az' %}İndi Al{% else %}Buy Now{% endif %}
                             </button>
                         </div>
                     </div>
-                </article>
-                {% endfor %}
-            {% else %}
-                <article class="card"
-                         data-category="ebook"
-                         data-price="15.00"
-                         data-title="python programming guide"
-                         data-desc="practical e-book exercises beginners">
-                    <div class="card-banner banner-ebook">
-                        <span class="banner-badge">{% if lang == 'az' %}E-KİTAB • PDF + KOD{% else %}E-BOOK • PDF + CODE{% endif %}</span>
-                        <span class="banner-icon">📘</span>
-                    </div>
-                    <div class="card-top-meta">
-                        <span class="tag product-category-tag">{% if lang == 'az' %}E-Kitablar{% else %}E-Books{% endif %}</span>
-                        <span class="delivery-tag">{% if lang == 'az' %}Ani çatdırılma{% else %}Instant delivery{% endif %}</span>
-                    </div>
-                    <div class="card-body">
-                        <h3 class="card-title">Python Programming Guide</h3>
-                        <p class="card-text">
-                            {% if lang == 'az' %}
-                            Yeni başlayanlar üçün ətraflı praktiki elektron kitab və tapşırıqlar toplusu.
-                            {% else %}
-                            The most detailed practical e-book and exercises collection for complete beginners.
-                            {% endif %}
-                        </p>
-                        <div class="card-footer">
-                            <div>
-                                <span class="price-label">{% if lang == 'az' %}Qiymət{% else %}Price{% endif %}</span>
-                                <span class="price">$15.00</span>
-                            </div>
-                            <button
-                                type="button"
-                                class="btn buy-now-btn"
-                                data-title="Python Programming Guide"
-                                data-price="15.00">
-                                {% if lang == 'az' %}İndi Al{% else %}Buy Now{% endif %}
-                            </button>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="card"
-                         data-category="template"
-                         data-price="45.00"
-                         data-title="django e-commerce template"
-                         data-desc="multi-vendor online marketplace backend">
-                    <div class="card-banner banner-template">
-                        <span class="banner-badge">{% if lang == 'az' %}DJANGO ŞABLONU{% else %}DJANGO TEMPLATE{% endif %}</span>
-                        <span class="banner-icon">🧩</span>
-                    </div>
-                    <div class="card-top-meta">
-                        <span class="tag product-category-tag">{% if lang == 'az' %}Kod Şablonları{% else %}Code Templates{% endif %}</span>
-                        <span class="delivery-tag">{% if lang == 'az' %}Ani çatdırılma{% else %}Instant delivery{% endif %}</span>
-                    </div>
-                    <div class="card-body">
-                        <h3 class="card-title">Django E-Commerce Template</h3>
-                        <p class="card-text">
-                            {% if lang == 'az' %}
-                            Çoxsatıcılı onlayn mağaza üçün tam işlək backend kodu və şablonu.
-                            {% else %}
-                            Fully functional backend code and template for a multi-vendor online marketplace.
-                            {% endif %}
-                        </p>
-                        <div class="card-footer">
-                            <div>
-                                <span class="price-label">{% if lang == 'az' %}Qiymət{% else %}Price{% endif %}</span>
-                                <span class="price">$45.00</span>
-                            </div>
-                            <button
-                                type="button"
-                                class="btn buy-now-btn"
-                                data-title="Django E-Commerce Template"
-                                data-price="45.00">
-                                {% if lang == 'az' %}İndi Al{% else %}Buy Now{% endif %}
-                            </button>
-                        </div>
-                    </div>
-                </article>
-            {% endif %}
+                </div>
+            </article>
+            {% empty %}
+            <div class="empty-catalog-box" id="emptyCatalogBox">
+                {% if lang == 'az' %}
+                Hazırda kataloqda aktiv məhsul yoxdur.
+                {% else %}
+                No active products are available in the catalog right now.
+                {% endif %}
+            </div>
+            {% endfor %}
         </div>
 
         <div id="emptyFilterState" class="empty-filter-box" style="display: none;">
@@ -207,11 +175,37 @@
         </div>
     </main>
 
-    <!-- Buy It Now / İndi Al Modal Pəncərəsi -->
+    <!-- Səbət (Cart) Modal Pəncərəsi -->
+    <div id="cartModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="cartModalTitle">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 id="cartModalTitle">{% if lang == 'az' %}Səbətiniz{% else %}Shopping Cart{% endif %}</h2>
+                <button type="button" class="modal-close" id="closeCartModalBtn" aria-label="Close">&times;</button>
+            </div>
+
+            <div id="cartItemsContainer" class="cart-items-list"></div>
+
+            <div class="cart-summary-row">
+                <span>{% if lang == 'az' %}Cəmi məbləğ{% else %}Total amount{% endif %}:</span>
+                <strong id="cartTotalPrice">$0.00</strong>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" id="clearCartBtn">
+                    {% if lang == 'az' %}Səbəti təmizlə{% else %}Clear Cart{% endif %}
+                </button>
+                <button type="button" class="btn-confirm" id="proceedCartCheckoutBtn">
+                    {% if lang == 'az' %}Sifarişə keç{% else %}Proceed to Order{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sifariş / Checkout Modal Pəncərəsi -->
     <div id="buyModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-box">
             <div class="modal-header">
-                <h2 id="modalTitle">{% if lang == 'az' %}Sürətli Alış (İndi Al){% else %}Buy It Now Summary{% endif %}</h2>
+                <h2 id="modalTitle">{% if lang == 'az' %}Sifariş Xülasəsi{% else %}Order Summary{% endif %}</h2>
                 <button type="button" class="modal-close" id="closeModalBtn" aria-label="Close">&times;</button>
             </div>
 
@@ -219,16 +213,19 @@
             <div id="modalProductPrice" class="modal-price"></div>
             <p class="modal-note">
                 {% if lang == 'az' %}
-                Rəqəmsal məhsul — sifariş təsdiqləndikdən sonra giriş və yükləmə məlumatı e-poçtunuza göndərilir.
+                Rəqəmsal məhsul — ödəniş server tərəfindən təsdiqləndikdən sonra yükləmə məlumatı e-poçtunuza göndərilir.
                 {% else %}
-                Digital item — download and access details are delivered after order confirmation.
+                Digital item — download and access details are sent to your email after server payment confirmation.
                 {% endif %}
             </p>
 
-            <form id="orderForm">
+            <form id="orderForm" method="post" action="/orders/create/">
+                {% csrf_token %}
+                <input type="hidden" id="orderProductId" name="product_id" value="">
+                <input type="hidden" id="orderSourceMode" name="source_mode" value="single">
                 <div class="modal-field">
                     <label for="buyerEmail">{% if lang == 'az' %}E-poçt ünvanınız{% else %}Your Email Address{% endif %}</label>
-                    <input type="email" id="buyerEmail" required placeholder="name@example.com">
+                    <input type="email" id="buyerEmail" name="email" required placeholder="name@example.com">
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn-cancel" id="cancelModalBtn">
@@ -244,6 +241,50 @@
         </div>
     </div>
 
-    <script src="{% static 'js/script.js' %}"></script>
+    <!-- Login / Register Modal Pəncərəsi -->
+    <div id="authModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 id="authModalTitle">{% if lang == 'az' %}Hesab Girişi / Qeydiyyat{% else %}Account Login / Register{% endif %}</h2>
+                <button type="button" class="modal-close" id="closeAuthModalBtn" aria-label="Close">&times;</button>
+            </div>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab active" id="tabLoginBtn" data-mode="login">
+                    {% if lang == 'az' %}Daxil ol{% else %}Login{% endif %}
+                </button>
+                <button type="button" class="auth-tab" id="tabRegisterBtn" data-mode="register">
+                    {% if lang == 'az' %}Qeydiyyat{% else %}Register{% endif %}
+                </button>
+            </div>
+
+            <form id="authForm" method="post" action="/accounts/login/">
+                {% csrf_token %}
+                <input type="hidden" id="authModeInput" name="mode" value="login">
+                <div class="modal-field">
+                    <label for="authUsername">{% if lang == 'az' %}İstifadəçi adı{% else %}Username{% endif %}</label>
+                    <input type="text" id="authUsername" name="username" required autocomplete="username">
+                </div>
+                <div class="modal-field" id="registerEmailGroup" style="display: none;">
+                    <label for="authEmail">{% if lang == 'az' %}E-poçt ünvanı{% else %}Email Address{% endif %}</label>
+                    <input type="email" id="authEmail" name="email" autocomplete="email">
+                </div>
+                <div class="modal-field">
+                    <label for="authPassword">{% if lang == 'az' %}Şifrə{% else %}Password{% endif %}</label>
+                    <input type="password" id="authPassword" name="password" required autocomplete="current-password">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="cancelAuthModalBtn">
+                        {% if lang == 'az' %}Bağla{% else %}Cancel{% endif %}
+                    </button>
+                    <button type="submit" class="btn-confirm" id="submitAuthBtn">
+                        {% if lang == 'az' %}Daxil ol{% else %}Login{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{% static 'js/script.js' %}?v=20261126"></script>
 </body>
 </html>
