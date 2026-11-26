@@ -159,7 +159,7 @@
 
     applyFiltersAndSort();
 
-    // Səbət (Cart) məntiqi — gələcək Django Cart modelinə uyğun strukturla
+    // Səbət (Cart) məntiqi
     function loadCart() {
         try {
             const raw = localStorage.getItem(CART_STORAGE_KEY);
@@ -195,6 +195,15 @@
         }, 0);
     }
 
+    function renderEmptyCartMessage() {
+        const emptyBox = document.createElement("div");
+        emptyBox.className = "empty-filter-box";
+        emptyBox.textContent = (lang === "az")
+            ? "Səbətiniz hazırda boşdur."
+            : "Your cart is currently empty.";
+        return emptyBox;
+    }
+
     function updateCartUI() {
         const totalQty = cartItems.reduce(function (sum, item) {
             return sum + (item.qty || 1);
@@ -208,41 +217,53 @@
             return;
         }
 
+        cartItemsContainer.textContent = "";
+
         if (cartItems.length === 0) {
-            cartItemsContainer.innerHTML = (lang === "az")
-                ? '<div class="empty-filter-box">Səbətiniz hazırda boşdur.</div>'
-                : '<div class="empty-filter-box">Your cart is currently empty.</div>';
+            cartItemsContainer.appendChild(renderEmptyCartMessage());
             cartTotalPriceEl.textContent = "$0.00";
             return;
         }
 
-        cartItemsContainer.innerHTML = cartItems.map(function (item, idx) {
-            const lineTotal = (parseFloat(item.price || "0") * (item.qty || 1)).toFixed(2);
-            const qtyLabel = (lang === "az") ? "Say" : "Qty";
-            const removeLabel = (lang === "az") ? "Sil" : "Remove";
-            return (
-                '<div class="cart-item-row">' +
-                    '<div>' +
-                        '<div class="cart-item-title">' + item.title + '</div>' +
-                        '<div class="cart-item-meta">' + qtyLabel + ': ' + (item.qty || 1) + ' &bull; $' + lineTotal + '</div>' +
-                    '</div>' +
-                    '<button type="button" class="cart-remove-btn" data-cart-index="' + idx + '">' + removeLabel + '</button>' +
-                '</div>'
-            );
-        }).join("");
+        const qtyLabel = (lang === "az") ? "Say" : "Qty";
+        const removeLabel = (lang === "az") ? "Sil" : "Remove";
+
+        cartItems.forEach(function (item, idx) {
+            const qty = item.qty || 1;
+            const lineTotal = (parseFloat(item.price || "0") * qty).toFixed(2);
+
+            const row = document.createElement("div");
+            row.className = "cart-item-row";
+
+            const infoDiv = document.createElement("div");
+
+            const titleDiv = document.createElement("div");
+            titleDiv.className = "cart-item-title";
+            titleDiv.textContent = String(item.title || "");
+
+            const metaDiv = document.createElement("div");
+            metaDiv.className = "cart-item-meta";
+            metaDiv.textContent = qtyLabel + ": " + qty + " • $" + lineTotal;
+
+            infoDiv.appendChild(titleDiv);
+            infoDiv.appendChild(metaDiv);
+
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className = "cart-remove-btn";
+            removeBtn.textContent = removeLabel;
+            removeBtn.addEventListener("click", function () {
+                cartItems.splice(idx, 1);
+                saveCart(cartItems);
+                updateCartUI();
+            });
+
+            row.appendChild(infoDiv);
+            row.appendChild(removeBtn);
+            cartItemsContainer.appendChild(row);
+        });
 
         cartTotalPriceEl.textContent = "$" + getCartTotal().toFixed(2);
-
-        cartItemsContainer.querySelectorAll(".cart-remove-btn").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                const idx = parseInt(btn.dataset.cartIndex || "-1", 10);
-                if (idx >= 0 && idx < cartItems.length) {
-                    cartItems.splice(idx, 1);
-                    saveCart(cartItems);
-                    updateCartUI();
-                }
-            });
-        });
     }
 
     function addToCart(productId, title, price) {
@@ -255,7 +276,7 @@
         } else {
             cartItems.push({
                 productId: productId || "",
-                title: title,
+                title: title || "",
                 price: numericPrice,
                 qty: 1
             });
@@ -313,212 +334,15 @@
         });
     }
 
-    updateCartUI();
-
-    // Sifariş / Checkout modal məntiqi
-    const modal = document.getElementById("buyModal");
-    const modalTitleEl = document.getElementById("modalProductName");
-    const modalPriceEl = document.getElementById("modalProductPrice");
-    const orderProductIdEl = document.getElementById("orderProductId");
-    const orderSourceModeEl = document.getElementById("orderSourceMode");
-    const closeBtn = document.getElementById("closeModalBtn");
-    const cancelBtn = document.getElementById("cancelModalBtn");
-    const form = document.getElementById("orderForm");
-    const emailInput = document.getElementById("buyerEmail");
-    const successBox = document.getElementById("orderSuccessBox");
-
-    function openOrderModal(options) {
-        if (!modal || !form) {
-            return;
-        }
-        modalTitleEl.textContent = options.title;
-        modalPriceEl.textContent = "$" + parseFloat(options.price || "0").toFixed(2);
-        if (orderProductIdEl) {
-            orderProductIdEl.value = options.productId || "";
-        }
-        if (orderSourceModeEl) {
-            orderSourceModeEl.value = options.sourceMode || "single";
-        }
-        form.style.display = "block";
-        form.reset();
-        if (successBox) {
-            successBox.style.display = "none";
-            successBox.textContent = "";
-        }
-        modal.classList.add("active");
-        if (emailInput) {
-            emailInput.focus();
-        }
-    }
-
-    function closeOrderModal() {
-        if (!modal) {
-            return;
-        }
-        modal.classList.remove("active");
-    }
-
-    document.querySelectorAll(".buy-now-btn").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            openOrderModal({
-                productId: btn.dataset.productId || "",
-                title: btn.dataset.title || "",
-                price: btn.dataset.price || "0.00",
-                sourceMode: "single"
-            });
-        });
-    });
-
     if (proceedCartCheckoutBtn) {
         proceedCartCheckoutBtn.addEventListener("click", function () {
-            if (cartItems.length === 0) {
-                return;
-            }
-            const summaryTitle = cartItems.map(function (item) {
-                return item.title + " x" + (item.qty || 1);
-            }).join(", ");
             closeCartModal();
-            openOrderModal({
-                productId: "",
-                title: summaryTitle,
-                price: getCartTotal().toFixed(2),
-                sourceMode: "cart"
-            });
-        });
-    }
-
-    if (closeBtn) {
-        closeBtn.addEventListener("click", closeOrderModal);
-    }
-
-    if (cancelBtn) {
-        cancelBtn.addEventListener("click", closeOrderModal);
-    }
-
-    if (modal) {
-        modal.addEventListener("click", function (e) {
-            if (e.target === modal) {
-                closeOrderModal();
+            const checkoutModal = document.getElementById("checkoutModal");
+            if (checkoutModal) {
+                checkoutModal.classList.add("active");
             }
         });
     }
 
-    if (form) {
-        form.addEventListener("submit", function (e) {
-            // Backend endpoint hələ tam qoşulmadığından ön tərəf xülasəsi göstərir;
-            // Mərhələ 3-də /orders/create/ ilə real bazaya bağlanacaq.
-            e.preventDefault();
-            const email = emailInput ? emailInput.value.trim() : "";
-            form.style.display = "none";
-            if (successBox) {
-                successBox.style.display = "block";
-                successBox.textContent = (lang === "az")
-                    ? ("Sifariş sorğusu hazırlandı! Məhsul: " + modalTitleEl.textContent + " (" + modalPriceEl.textContent + ") — E-poçt: " + email)
-                    : ("Order request prepared! Item: " + modalTitleEl.textContent + " (" + modalPriceEl.textContent + ") — Email: " + email);
-            }
-            if (orderSourceModeEl && orderSourceModeEl.value === "cart") {
-                cartItems = [];
-                saveCart(cartItems);
-                updateCartUI();
-            }
-        });
-    }
-
-    // Login / Register modal məntiqi
-    const authModal = document.getElementById("authModal");
-    const openLoginBtn = document.getElementById("openLoginBtn");
-    const openRegisterBtn = document.getElementById("openRegisterBtn");
-    const closeAuthModalBtn = document.getElementById("closeAuthModalBtn");
-    const cancelAuthModalBtn = document.getElementById("cancelAuthModalBtn");
-    const tabLoginBtn = document.getElementById("tabLoginBtn");
-    const tabRegisterBtn = document.getElementById("tabRegisterBtn");
-    const authModeInput = document.getElementById("authModeInput");
-    const registerEmailGroup = document.getElementById("registerEmailGroup");
-    const authEmailInput = document.getElementById("authEmail");
-    const submitAuthBtn = document.getElementById("submitAuthBtn");
-    const authForm = document.getElementById("authForm");
-
-    function setAuthMode(mode) {
-        const isRegister = mode === "register";
-        if (authModeInput) {
-            authModeInput.value = isRegister ? "register" : "login";
-        }
-        if (tabLoginBtn) {
-            tabLoginBtn.classList.toggle("active", !isRegister);
-        }
-        if (tabRegisterBtn) {
-            tabRegisterBtn.classList.toggle("active", isRegister);
-        }
-        if (registerEmailGroup) {
-            registerEmailGroup.style.display = isRegister ? "block" : "none";
-        }
-        if (authEmailInput) {
-            authEmailInput.required = isRegister;
-        }
-        if (authForm) {
-            authForm.action = isRegister ? "/accounts/register/" : "/accounts/login/";
-        }
-        if (submitAuthBtn) {
-            if (isRegister) {
-                submitAuthBtn.textContent = (lang === "az") ? "Qeydiyyatdan keç" : "Register";
-            } else {
-                submitAuthBtn.textContent = (lang === "az") ? "Daxil ol" : "Login";
-            }
-        }
-    }
-
-    function openAuthModal(mode) {
-        if (!authModal) {
-            return;
-        }
-        setAuthMode(mode || "login");
-        authModal.classList.add("active");
-    }
-
-    function closeAuthModal() {
-        if (!authModal) {
-            return;
-        }
-        authModal.classList.remove("active");
-    }
-
-    if (openLoginBtn) {
-        openLoginBtn.addEventListener("click", function () {
-            openAuthModal("login");
-        });
-    }
-
-    if (openRegisterBtn) {
-        openRegisterBtn.addEventListener("click", function () {
-            openAuthModal("register");
-        });
-    }
-
-    if (tabLoginBtn) {
-        tabLoginBtn.addEventListener("click", function () {
-            setAuthMode("login");
-        });
-    }
-
-    if (tabRegisterBtn) {
-        tabRegisterBtn.addEventListener("click", function () {
-            setAuthMode("register");
-        });
-    }
-
-    if (closeAuthModalBtn) {
-        closeAuthModalBtn.addEventListener("click", closeAuthModal);
-    }
-
-    if (cancelAuthModalBtn) {
-        cancelAuthModalBtn.addEventListener("click", closeAuthModal);
-    }
-
-    if (authModal) {
-        authModal.addEventListener("click", function (e) {
-            if (e.target === authModal) {
-                closeAuthModal();
-            }
-        });
-    }
+    updateCartUI();
 })();

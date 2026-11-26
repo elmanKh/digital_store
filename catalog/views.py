@@ -3,13 +3,13 @@ from .models import Product
 
 
 def index(request):
-    products = Product.objects.all()
-    lang = request.GET.get('lang', 'en')
-    if lang not in ('en', 'az'):
-        lang = 'en'
+    products = Product.objects.filter(is_active=True)
+    lang = request.GET.get("lang", "en")
+    if lang not in ("en", "az"):
+        lang = "en"
 
     context = {
-        'products': products,
-        'lang': lang,
+        "products": products,
+        "lang": lang,
     }
-    return render(request, 'index.html', context)
+    return render(request, "index.html", context)
